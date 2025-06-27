@@ -10,6 +10,11 @@ from whisperx.alignment import align, load_align_model
 from whisperx.asr import load_model
 from whisperx.audio import load_audio
 from whisperx.diarize import DiarizationPipeline, assign_word_speakers
+# Import the offline diarization pipeline
+try:
+    from .offline_diarize import OfflineDiarizationPipeline
+except ImportError:
+    OfflineDiarizationPipeline = None
 from whisperx.types import AlignedTranscriptionResult, TranscriptionResult
 from whisperx.utils import LANGUAGES, TO_LANGUAGE_CODE, get_writer
 
@@ -55,6 +60,8 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
     chunk_size: int = args.pop("chunk_size")
 
     diarize: bool = args.pop("diarize")
+    diarize_offline: bool = args.pop("diarize_offline")
+    diarize_config: str = args.pop("diarize_config")
     min_speakers: int = args.pop("min_speakers")
     max_speakers: int = args.pop("max_speakers")
     diarize_model_name: str = args.pop("diarize_model")
@@ -203,15 +210,23 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
 
     # >> Diarize
     if diarize:
-        if hf_token is None:
-            print(
-                "Warning, no --hf_token used, needs to be saved in environment variable, otherwise will throw error loading diarization model..."
+        if diarize_offline:
+            tmp_results = results
+            print(">>Performing diarization...")
+            results = []
+            if OfflineDiarizationPipeline is None:
+                raise ImportError("offline_diarize.py must be in the same directory as transcribe.py. Please ensure it's properly installed.")
+
+            print(f"Using offline diarization with config: {diarize_config}")
+            diarize_model = OfflineDiarizationPipeline(
+                config_path=diarize_config,
+                device=device
             )
-        tmp_results = results
-        print(">>Performing diarization...")
-        print(">>Using model:", diarize_model_name)
-        results = []
-        diarize_model = DiarizationPipeline(model_name=diarize_model_name, use_auth_token=hf_token, device=device)
+        else:
+            if hf_token is None:
+                print("Warning, no --hf_token used, needs to be saved in environment variable, otherwise will throw error loading diarization model...")
+            diarize_model = DiarizationPipeline(use_auth_token=hf_token, device=device)
+
         for result, input_audio_path in tmp_results:
             diarize_result = diarize_model(
                 input_audio_path, 
