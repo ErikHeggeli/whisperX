@@ -50,6 +50,7 @@ class OfflineDiarizationPipeline:
         num_speakers=None,
         min_speakers=None,
         max_speakers=None,
+        return_embeddings: bool = False,
     ):
         if isinstance(audio, str):
             audio = load_audio(audio)
@@ -57,6 +58,23 @@ class OfflineDiarizationPipeline:
             'waveform': torch.from_numpy(audio[None, :]),
             'sample_rate': SAMPLE_RATE
         }
+        
+        if return_embeddings:
+            diarization, embeddings = self.model(
+                audio_data,
+                num_speakers=num_speakers,
+                min_speakers=min_speakers,
+                max_speakers=max_speakers,
+                return_embeddings=True,
+            )
+        else:
+            diarization = self.model(
+                audio_data,
+                num_speakers=num_speakers,
+                min_speakers=min_speakers,
+                max_speakers=max_speakers,
+            )
+            embeddings = None
         segments = self.model(audio_data, num_speakers=num_speakers, min_speakers=min_speakers, max_speakers=max_speakers)
         diarize_df = pd.DataFrame(segments.itertracks(yield_label=True), columns=['segment', 'label', 'speaker'])
         diarize_df['start'] = diarize_df['segment'].apply(lambda x: x.start)
