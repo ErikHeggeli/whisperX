@@ -50,7 +50,6 @@ class OfflineDiarizationPipeline:
         num_speakers=None,
         min_speakers=None,
         max_speakers=None,
-        return_embeddings: bool = False,
     ):
         if isinstance(audio, str):
             audio = load_audio(audio)
@@ -65,7 +64,6 @@ class OfflineDiarizationPipeline:
                 num_speakers=num_speakers,
                 min_speakers=min_speakers,
                 max_speakers=max_speakers,
-                return_embeddings=True,
             )
         else:
             diarization = self.model(
